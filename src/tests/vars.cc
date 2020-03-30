@@ -36,6 +36,8 @@
 
 #include <teng/teng.h>
 
+#include <iostream>
+
 #include "catch.hpp"
 #include "utils.h"
 
@@ -889,6 +891,41 @@ SCENARIO(
         }
     }
 }
+
+
+SCENARIO(
+    "Variables setting in array",
+    "[vars][regvars]"
+) {
+    GIVEN("Some data with the same named fragment and with variables") {
+        Teng::Fragment_t root;
+        root.addFragment("dog").addVariable("age", "10");
+        root.addFragment("dog").addVariable("age", "11");
+        root.addFragment("dog").addVariable("age", "12");
+
+    WHEN("Setting variable in prevoius frame") {
+            Teng::Error_t err;
+            auto t = "<?frag dog?>"
+                     "<?if $age == 11 ?><?set var_set = 'var_set'?><?endif?>"
+                     "${age}: ${var_set};"
+                     "<?endfrag?>";
+            auto result = g(err, t, root);
+
+            THEN("The set variable should not be visible in next frame, but it is") {
+                std::vector<Teng::Error_t::Entry_t> errs = {{
+                    Teng::Error_t::WARNING,
+                    {1, 76},
+                    "Runtime: Variable '.dog.var_set' is undefined "
+                    "[open_frags=.dog, iteration=0/3]"
+                }};
+                err.dump(std::cout);
+                ERRLOG_TEST(err.getEntries(), errs);
+                REQUIRE(result == "10: undefined;11: var_set;12: var_set;");
+            }
+        }
+    }
+}
+
 
 SCENARIO(
     "Variables setting errors",
